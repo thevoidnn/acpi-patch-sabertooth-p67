@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+
+CPIO_FILENAME='sabertooth_p67_acpi_override.img'
+GRUB_PARAMS_FILE='/etc/default/grub'
+
+
+# copy cpio archive to /boot
+sudo cp $CPIO_FILENAME /boot/
+
+if grep -q "GRUB_EARLY_INITRD_LINUX_CUSTOM" $GRUB_PARAMS_FILE; then
+	echo "Other override already exists in $GRUB_PARAMS_FILE, please edit it yourself."
+	echo "And don't forget to update your grub.cfg"
+	exit 1
+else
+	echo "" | sudo tee -a $GRUB_PARAMS_FILE > /dev/null
+	echo "# Sabertooth P67 ACPI Override" | sudo tee -a $GRUB_PARAMS_FILE > /dev/null
+	echo "GRUB_EARLY_INITRD_LINUX_CUSTOM=\"$CPIO_FILENAME\"" | sudo tee -a $GRUB_PARAMS_FILE > /dev/null
+
+	sudo grub-mkconfig -o /boot/grub/grub.cfg
+fi

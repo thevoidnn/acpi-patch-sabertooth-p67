@@ -1,0 +1,36 @@
+#!/bin/bash
+#
+
+# this will be patched as constants:
+DSSP='One'
+FHPP='Zero'
+
+CPIO_FILENAME='sabertooth_p67_acpi_override.img'
+
+# extract Secondary Table 1
+sudo cat /sys/firmware/acpi/tables/SSDT1 > ssdt1.dat
+
+# decompile it
+iasl -d ssdt1.dat
+
+# increment table version number
+DEFBLOCK_LINE=`grep DefinitionBlock ssdt1.dsl`
+OLD_TABLE_VERSION=`echo $DEFBLOCK_LINE | grep -oP "0x\K\w+"`
+
+NEW_TABLE_VERSION=`echo $OLD_TABLE_VERSION | tr [a-f] [A-F]`
+NEW_TABLE_VERSION=`echo "ibase=16; $NEW_TABLE_VERSION+1" | bc`
+NEW_TABLE_VERSION=`printf %08x $NEW_TABLE_VERSION`
+
+echo "* changing table version: 0x$OLD_TABLE_VERSION => 0x$NEW_TABLE_VERSION"
+
+# replace table version and DSSP/FHPP
+sed -i "s/$OLD_TABLE_VERSION/$NEW_TABLE_VERSION/"  ssdt1.dsl
+sed -i "s/External.*(DSSP,.*)/Name (DSSP, $DSSP)/" ssdt1.dsl
+sed -i "s/External.*(FHPP,.*)/Name (FHPP, $FHPP)/" ssdt1.dsl
+
+# recompile it
+iasl -tc ssdt1.dsl
+
+cp ssdt1.aml kernel/firmware/acpi/
+
+find kernel | cpio -H newc --create > $CPIO_FILENAME
